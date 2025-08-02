@@ -27,8 +27,9 @@ def ask_llm(prompt: str, model: str = None) -> str:
             response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=1024
+                temperature=0.1,  # Lower temperature for more deterministic responses
+                max_tokens=512,   # Reduced max tokens for faster responses
+                request_timeout=15  # Set timeout to avoid long waits
             )
             
             if response.choices and response.choices[0].message and response.choices[0].message.content:
@@ -51,8 +52,8 @@ def ask_llm(prompt: str, model: str = None) -> str:
             data = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.2,
-                "max_tokens": 1024
+                "temperature": 0.1,  # Lower temperature for more deterministic responses
+                "max_tokens": 512    # Reduced max tokens for faster responses
             }
             
             response = requests.post(

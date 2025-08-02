@@ -26,7 +26,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         logger.warning(f"Unauthorized access attempt with token: {credentials.credentials[:10]}...")
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-@router.post("/hackrx/run", response_model=HackrxResponse)
+@router.post("/api/v1/hackrx/run", response_model=HackrxResponse)
 async def run_hackrx(request: HackrxRequest, auth: HTTPAuthorizationCredentials = Depends(verify_token)):
     """
     Main endpoint for document upload and question answering.

@@ -14,9 +14,12 @@ import logging
 logger = logging.getLogger("pipeline")
 logging.basicConfig(level=logging.INFO)
 
+import asyncio
+
 async def process_query_pipeline(request: HackrxRequest) -> HackrxResponse:
     """
     Main pipeline for processing document upload and answering questions.
+    Optimized with parallel processing for faster response times.
     
     Args:
         request: HackrxRequest containing documents and questions
@@ -55,8 +58,8 @@ async def process_query_pipeline(request: HackrxRequest) -> HackrxResponse:
             db.rollback()
             raise RuntimeError(f"DB save document failed: {e}")
 
-        answer_strings = []
-        for i, question in enumerate(request.questions):
+        # Define async function to process a single question
+        async def process_question(i, question):
             try:
                 # 4. Save question to DB
                 q_obj = Question(document_id=doc_obj.id, question_text=question)
@@ -67,12 +70,17 @@ async def process_query_pipeline(request: HackrxRequest) -> HackrxResponse:
             except Exception as e:
                 logger.error(f"DB save question failed: {e}")
                 db.rollback()
-                continue
+                return {
+                    "answer": f"Database error: {str(e)}",
+                    "question": question,
+                    "score": 0.0
+                }
 
-            # 5. Query FAISS for relevant chunks
+            # 5. Query FAISS for relevant chunks (reduced to 2 for faster processing)
             try:
-                matches = await query_faiss(question, top_k=3)
+                matches = await query_faiss(question, top_k=2)
                 if matches:
+                    # Only use the most relevant chunks to reduce context size
                     context = "\n".join([m.get("metadata", {}).get("text", "") for m in matches])
                     clause_ref = matches[0].get("id") if matches else None
                     logger.info(f"Found {len(matches)} relevant chunks for question {i+1}")
@@ -87,17 +95,13 @@ async def process_query_pipeline(request: HackrxRequest) -> HackrxResponse:
 
             # 6. Use LLM to answer with rationale
             try:
-                prompt = f"""Based on the following document context, answer the question accurately and provide a clear explanation.
+                prompt = f"""Answer this question concisely based on the context provided.
 
-Document Context:
-{context}
+Context: {context}
 
 Question: {question}
 
-Please provide:
-1. A direct answer to the question
-2. A brief explanation of your reasoning
-3. Reference to specific clauses or sections if applicable
+Provide a direct answer followed by brief reasoning. Be concise.
 
 Answer:"""
                 
@@ -142,8 +146,16 @@ Answer:"""
                 logger.error(f"DB save answer failed: {e}")
                 db.rollback()
 
-            # Add answer string to response list
-            answer_strings.append(answer)
+            # Return structured answer
+            return {
+                "answer": answer,
+                "question": question,
+                "score": str(score)  # Convert score to string to ensure compatibility
+            }
+        
+        # Process all questions in parallel
+        tasks = [process_question(i, question) for i, question in enumerate(request.questions)]
+        answer_strings = await asyncio.gather(*tasks)
 
         db.close()
         logger.info(f"Pipeline completed successfully. Generated {len(answer_strings)} answers.")
@@ -151,5 +163,9 @@ Answer:"""
         
     except Exception as e:
         logger.error(f"Pipeline failed: {e}")
-        # Return error response with single answer item
-        return HackrxResponse(answers=[f"Pipeline error: {str(e)}"])
+        # Return error response with structured format
+        return HackrxResponse(answers=[{
+            "answer": f"Pipeline error: {str(e)}",
+            "question": "Error",
+            "score": "0.0"  # Use string format for score
+        }])

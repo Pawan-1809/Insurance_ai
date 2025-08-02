@@ -8,4 +8,4 @@ class AnswerItem(BaseModel):
     score: Optional[float] = None
 
 class HackrxResponse(BaseModel):
-    answers: List[str]  # Simple list of answer strings as per problem statement
+    answers: List[Dict[str, object]]  # List of answer dictionaries with structured format supporting different value types

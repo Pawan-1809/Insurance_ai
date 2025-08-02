@@ -40,12 +40,15 @@ def detect_file_type(file_path: str) -> str:
         return 'docx'
     elif ext in ['.eml', '.email', '.txt']:
         return 'email'
+    elif ext in ['.md', '.markdown']:
+        return 'markdown'
     else:
         raise ValueError(f"Unsupported file type: {ext}")
 
 def chunk_text(text: str, max_chunk_size: int = None, overlap: int = None) -> List[str]:
     """
     Split text into overlapping chunks for better semantic search.
+    Optimized for faster processing with reduced overlap.
     
     Args:
         text: Text to chunk
@@ -61,30 +64,23 @@ def chunk_text(text: str, max_chunk_size: int = None, overlap: int = None) -> Li
     if len(text) <= max_chunk_size:
         return [text]
     
+    # Faster chunking with simpler sentence boundary detection
     chunks = []
-    start = 0
+    sentences = [s.strip() for s in text.replace('\n', ' ').split('.') if s.strip()]
+    current_chunk = ""
     
-    while start < len(text):
-        end = start + max_chunk_size
-        
-        # Try to break at sentence boundaries
-        if end < len(text):
-            # Look for sentence endings
-            for i in range(end, max(start + max_chunk_size // 2, end - 100), -1):
-                if text[i] in '.!?':
-                    end = i + 1
-                    break
-        
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        
-        # Move start position with overlap
-        start = end - overlap
-        if start >= len(text):
-            break
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) + 1 <= max_chunk_size:
+            current_chunk += sentence + ". "
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence + ". "
     
-    logger.info(f"Split text into {len(chunks)} chunks")
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    logger.info(f"Split text into {len(chunks)} chunks using optimized chunking")
     return chunks
 
 def parse_document(file_path: str) -> List[str]:
@@ -100,6 +96,10 @@ def parse_document(file_path: str) -> List[str]:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 raw_email = f.read()
             text = extract_text_from_email(raw_email)
+        elif file_type == 'markdown':
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                text = f.read()
+            logger.info(f"Parsed markdown file: {file_path}")
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
         

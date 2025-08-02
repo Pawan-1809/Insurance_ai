@@ -22,3 +22,17 @@ Thumbs.db
 
 # Others
 *.log
+
+# FAISS Index Files
+faiss_index*
+*.index
+*.pkl
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp

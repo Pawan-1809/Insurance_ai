@@ -8,4 +8,4 @@ class AnswerItem(BaseModel):
     score: Optional[float] = None
 
 class HackrxResponse(BaseModel):
-    answers: List[AnswerItem]
+    answers: List[str]  # Simple list of answer strings as per problem statement

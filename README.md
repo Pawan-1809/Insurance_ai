@@ -9,8 +9,15 @@ A backend system for contextual query answering over insurance, legal, HR, and c
 1. `python -m venv venv`
 2. `venv\Scripts\activate` (Windows)
 3. `pip install -r requirements.txt`
-4. Copy `.env.example` to `.env` and fill in your API keys
+4. Copy `.env.example` to `.env` and fill in your API keys and tokens
 5. `uvicorn app.main:app --reload`
+
+## Deployment (Railway/Render)
+
+- Use the provided Dockerfile for containerized deployment.
+- Set all environment variables from `.env.example` in your platform's dashboard.
+- Expose port 8000.
+- Health check endpoint: `/health`
 
 ## API
 
